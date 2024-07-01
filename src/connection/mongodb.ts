@@ -1,5 +1,4 @@
-
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 import { mongoUrl, mongoPassword, mongoUser, dbName } from "../config";
 
 export const connectDatabase = async () => {
@@ -8,18 +7,23 @@ export const connectDatabase = async () => {
 		.connect(`${mongoUrl}`, {
 			dbName,
 			user: mongoUser,
-			pass: mongoPassword
+			pass: mongoPassword,
 		})
 		.then(() => {
 			/** ready to use. The `mongoose.connect()` promise resolves to undefined. */
-			console.info('MongoDB connected')
+			console.info("MongoDB connected");
 		})
-}
-
+		.catch((err) => {
+			console.error(
+				"MongoDB connection error. Please make sure MongoDB is running. "
+			);
+			console.log(err);
+		});
+};
 
 // 断开链接
 export const disconnectDatabase = async () => {
-	await mongoose.disconnect()
+	await mongoose.disconnect();
 
-	console.log('disconnect mongodb')
-}
+	console.log("disconnect mongodb");
+};
