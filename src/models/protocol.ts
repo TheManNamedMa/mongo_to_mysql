@@ -19,16 +19,21 @@ import { mySqlConnection } from "../connection";
 
 const batchSize = 2000
 
-const tableName = "accounts"
+const tableName = "protocols"
 
-type AccountsType = {
+type ProtocolType = {
 	_id?: string
-	chainId: number,
-	address: string,
+	hash: string
+	uri: string
+	suit: number
+	title: string
+	bytes: number[]
+	nodeId: string
+	chainId: number
 }
 
 
-export type AccountsDocument = Document & AccountsType
+export type ProtocolDocument = Document & ProtocolType
 
 const executeSchema = new Schema(
 	{
@@ -43,30 +48,61 @@ const executeSchema = new Schema(
 	{ timestamps: true, versionKey: false }
 )
 
-export const AccountMongoModel = model<AccountsDocument>(Table.Account, executeSchema)
+export const ProtocolMongoModel = model<ProtocolDocument>(Table.Protocol, executeSchema)
 
 
 
-export interface AccountsMySqlType
+export interface ProtocolMySqlType
 	extends Model<
-		InferAttributes<AccountsMySqlType>,
-		InferCreationAttributes<AccountsMySqlType>
+		InferAttributes<ProtocolMySqlType>,
+		InferCreationAttributes<ProtocolMySqlType>
 	>,
-	AccountsType { }
+	ProtocolType { }
 
 
-export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
+export const ProtocolMySqlModel = mySqlConnection.define<ProtocolMySqlType>(
 	tableName,
 	{
 		_id: {
 			type: STRING(255),
 			allowNull: false
 		},
+		hash: {
+			type: STRING(255),
+			allowNull: true,
+		},
+		uri: {
+			type: STRING,
+			allowNull: true,
+		},
+		suit: {
+			type: STRING,
+			allowNull: true,
+		},
+		title: {
+			type: STRING,
+			allowNull: true,
+		},
+		bytes: {
+			// type: ARRAY(INTEGER),
+			allowNull: true,
+			type: TEXT("long"),
+			get() {
+				const value = (this.getDataValue("bytes") ||
+					JSON.stringify([])) as unknown as string;
+				return JSON.parse(value);
+			},
+			set(value) {
+				const v: any = JSON.stringify(value);
+				this.setDataValue("bytes", v);
+			},
+		},
+		nodeId: {
+			type: STRING,
+			allowNull: true,
+		},
 		chainId: {
 			type: INTEGER,
-		},
-		address: {
-			type: STRING,
 			allowNull: true,
 		},
 	},
@@ -79,13 +115,13 @@ export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
 
 
 const getMongoData = async (query: any): Promise<any[]> => {
-	const contracts = await AccountMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
+	const contracts = await ProtocolMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
 
 function updateOperation(data: any) {
 	return new Promise(async (resolve) => {
-		await AccountsMySqlModel.update(data, {
+		await ProtocolMySqlModel.update(data, {
 			where: {
 				_id: data._id,
 			},
@@ -95,21 +131,21 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await AccountsMySqlModel.bulkCreate(list);
+	const results = await ProtocolMySqlModel.bulkCreate(list);
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: AccountsMySqlType[]) {
+async function updateSequentially(updateList: ProtocolMySqlType[]) {
 	for (const item of updateList) {
-		console.log('update account', item._id);
+		console.log('update protocol contract', item._id);
 		await updateOperation(item);
 	}
 }
 
 
-export async function migrateAccounts() {
+export async function migrateProtocol() {
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
 
@@ -125,7 +161,7 @@ export async function migrateAccounts() {
 
 		const _idSet = new Set();
 		const _ids: string[] = [];
-		const newList: AccountsMySqlType[] = []
+		const newList: ProtocolMySqlType[] = []
 		list.forEach((data: any) => {
 			const { _doc } = data;
 			const { _id, ...item } = _doc;
@@ -139,7 +175,7 @@ export async function migrateAccounts() {
 			newList.push(newItem)
 		});
 
-		const preList = await AccountsMySqlModel.findAll({
+		const preList = await ProtocolMySqlModel.findAll({
 			where: {
 				_id: {
 					[Op.in]: _ids,
@@ -149,8 +185,8 @@ export async function migrateAccounts() {
 		if (!preList.length) {
 			await asyncManyOperation(newList)
 		} else {
-			const insertList: AccountsMySqlType[] = [];
-			const updateList: AccountsMySqlType[] = [];
+			const insertList: ProtocolMySqlType[] = [];
+			const updateList: ProtocolMySqlType[] = [];
 
 			newList.forEach((item: any) => {
 				const id = item._id;

@@ -115,7 +115,7 @@ export const ExecuteMySqlModel = mySqlConnection.define<ExecuteMySqlType>(
 			allowNull: true,
 		},
 		timestamp: {
-			type: INTEGER,
+			type: BIGINT,
 			allowNull: true,
 		},
 		_arguments: {

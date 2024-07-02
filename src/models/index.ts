@@ -8,6 +8,7 @@ export * from "./filekey"
 export * from "./monitor"
 export * from "./node"
 export * from "./presetContract"
-
+export * from "./protocol"
+export * from "./rootkey"
 export * from "./tblocks"
 

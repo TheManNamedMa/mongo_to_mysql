@@ -1,4 +1,4 @@
-import { Document, model, SchemaTypes, Schema, Types } from 'mongoose'
+import { Document, model, Schema } from 'mongoose'
 import { Table } from './table';
 import {
 	INTEGER,
@@ -7,11 +7,7 @@ import {
 	InferCreationAttributes,
 	STRING,
 	TEXT,
-	FLOAT,
 	Op,
-	BIGINT,
-	BOOLEAN,
-	ARRAY,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
@@ -19,54 +15,50 @@ import { mySqlConnection } from "../connection";
 
 const batchSize = 2000
 
-const tableName = "accounts"
+const tableName = "rootkeys"
 
-type AccountsType = {
+type RootKeyType = {
 	_id?: string
-	chainId: number,
-	address: string,
+	publicKey: string
+	jsonKey: string
 }
 
 
-export type AccountsDocument = Document & AccountsType
+export type RootKeyDocument = Document & RootKeyType
 
 const executeSchema = new Schema(
 	{
-		hash: String,
-		uri: String,
-		suit: Number,
-		title: String,
-		bytes: [Number],
-		nodeId: String,
-		chainId: { type: Number, index: true }
+		publicKey: String,
+		jsonKey: String
 	},
 	{ timestamps: true, versionKey: false }
 )
 
-export const AccountMongoModel = model<AccountsDocument>(Table.Account, executeSchema)
+export const RootKeyMongoModel = model<RootKeyDocument>(Table.RootKey, executeSchema)
 
 
 
-export interface AccountsMySqlType
+export interface RootKeyMySqlType
 	extends Model<
-		InferAttributes<AccountsMySqlType>,
-		InferCreationAttributes<AccountsMySqlType>
+		InferAttributes<RootKeyMySqlType>,
+		InferCreationAttributes<RootKeyMySqlType>
 	>,
-	AccountsType { }
+	RootKeyType { }
 
 
-export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
+export const RootKeyMySqlModel = mySqlConnection.define<RootKeyMySqlType>(
 	tableName,
 	{
 		_id: {
 			type: STRING(255),
 			allowNull: false
 		},
-		chainId: {
-			type: INTEGER,
+		publicKey: {
+			type: STRING(255),
+			allowNull: true,
 		},
-		address: {
-			type: STRING,
+		jsonKey: {
+			type: TEXT('medium'),
 			allowNull: true,
 		},
 	},
@@ -79,13 +71,13 @@ export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
 
 
 const getMongoData = async (query: any): Promise<any[]> => {
-	const contracts = await AccountMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
+	const contracts = await RootKeyMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
 
 function updateOperation(data: any) {
 	return new Promise(async (resolve) => {
-		await AccountsMySqlModel.update(data, {
+		await RootKeyMySqlModel.update(data, {
 			where: {
 				_id: data._id,
 			},
@@ -95,21 +87,21 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await AccountsMySqlModel.bulkCreate(list);
+	const results = await RootKeyMySqlModel.bulkCreate(list);
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: AccountsMySqlType[]) {
+async function updateSequentially(updateList: RootKeyMySqlType[]) {
 	for (const item of updateList) {
-		console.log('update account', item._id);
+		console.log('update root key', item._id);
 		await updateOperation(item);
 	}
 }
 
 
-export async function migrateAccounts() {
+export async function migrateRootKey() {
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
 
@@ -125,7 +117,7 @@ export async function migrateAccounts() {
 
 		const _idSet = new Set();
 		const _ids: string[] = [];
-		const newList: AccountsMySqlType[] = []
+		const newList: RootKeyMySqlType[] = []
 		list.forEach((data: any) => {
 			const { _doc } = data;
 			const { _id, ...item } = _doc;
@@ -139,7 +131,7 @@ export async function migrateAccounts() {
 			newList.push(newItem)
 		});
 
-		const preList = await AccountsMySqlModel.findAll({
+		const preList = await RootKeyMySqlModel.findAll({
 			where: {
 				_id: {
 					[Op.in]: _ids,
@@ -149,8 +141,8 @@ export async function migrateAccounts() {
 		if (!preList.length) {
 			await asyncManyOperation(newList)
 		} else {
-			const insertList: AccountsMySqlType[] = [];
-			const updateList: AccountsMySqlType[] = [];
+			const insertList: RootKeyMySqlType[] = [];
+			const updateList: RootKeyMySqlType[] = [];
 
 			newList.forEach((item: any) => {
 				const id = item._id;
