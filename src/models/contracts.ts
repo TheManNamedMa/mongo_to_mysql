@@ -231,7 +231,7 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 		},
 		_arguments: {
 			allowNull: true,
-			type: DataTypes.TEXT,
+			type: TEXT("long"),
 			get() {
 				const value = (this.getDataValue("_arguments") ||
 					JSON.stringify([])) as unknown as string;

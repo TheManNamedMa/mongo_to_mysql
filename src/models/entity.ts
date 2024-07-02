@@ -145,7 +145,7 @@ export async function migrateEntity() {
 	await mySqlConnection.sync({ force: false });
 
 	let lastId = null
-
+	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};
 		const list = (await getMongoData(query)) || [];
@@ -201,6 +201,7 @@ export async function migrateEntity() {
 			}
 		}
 		lastId = list[list.length - 1]._id;
+		console.log(`${current += list.length} ${lastId}`)
 	}
 
 
