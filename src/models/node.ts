@@ -10,6 +10,7 @@ import {
 	FLOAT,
 	Op,
 	BIGINT,
+	BOOLEAN,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
@@ -17,61 +18,71 @@ import { mySqlConnection } from "../connection";
 
 const batchSize = 2000
 
-const tableName = "monitors"
+const tableName = "nodes"
 
-type MonitorType = {
+type NodeType = {
 	_id?: string
-	chainId: number
 	nodeId: string
-	cpuUsedPercent: number
-	memoryUsedPercent: number
-	netReceivedBytes: number
-	netSentBytes: number
-	diskUsedPercent: number
-	tps: number
-	timestamp: number
+	nodeType: number
+	activateStatus: number
+	chainId: number
+	name: string
+	description: string
+	host: string
+	port: number
+	location: string
+	latitude: number
+	longitude: number
+	regionName: string
+	isDictatorship: boolean
+	address: string
+	passportName: string
 }
 
 
-export type MonitorDocument = Document & MonitorType
+export type NodeDocument = Document & NodeType
 
 const executeSchema = new Schema(
 	{
+		nodeId: {
+			type: String,
+			unique: true,
+			index: true
+		},
+		nodeType: Number,
+		activateStatus: Number,
 		chainId: {
 			type: Number,
 			index: true
 		},
-		nodeId: String,
-		cpuUsedPercent: Number,
-		memoryUsedPercent: Number,
-		netReceivedBytes: {
-			type: Number,
-			default: 0
-		},
-		netSentBytes: {
-			type: Number,
-			default: 0
-		},
-		diskUsedPercent: Number,
-		tps: Number,
-		timestamp: Number
+		name: String,
+		description: String,
+		host: String,
+		port: Number,
+		location: String,
+		latitude: Number,
+		longitude: Number,
+		regionName: String,
+		isDictatorship: Boolean,
+		address: String,
+		passportName: String
 	},
 	{ timestamps: true, versionKey: false }
 )
 
-export const MonitorMongoModel = model<MonitorDocument>(Table.Monitor, executeSchema)
+export const NodeMongoModel = model<NodeDocument>(Table.Node, executeSchema)
 
 
 
-export interface MonitorMySqlType
+export interface NodeMySqlType
 	extends Model<
-		InferAttributes<MonitorMySqlType>,
-		InferCreationAttributes<MonitorMySqlType>
+		InferAttributes<NodeMySqlType>,
+		InferCreationAttributes<NodeMySqlType>
 	>,
-	MonitorType { }
+	NodeType { }
 
 
-export const MonitorMySqlModel = mySqlConnection.define<MonitorMySqlType>(
+export const NodeMySqlModel = mySqlConnection.define<NodeMySqlType>(
 	tableName,
 	{
 		_id: {
@@ -82,36 +93,59 @@ export const MonitorMySqlModel = mySqlConnection.define<MonitorMySqlType>(
 			type: STRING(255),
 			allowNull: true,
 		},
+		nodeType: {
+			type: INTEGER,
+			allowNull: true,
+		},
+		activateStatus: {
+			type: INTEGER,
+			allowNull: true,
+		},
 		chainId: {
 			type: INTEGER,
 			allowNull: true,
 		},
-		cpuUsedPercent: {
-			type: FLOAT,
+		name: {
+			type: STRING(255),
 			allowNull: true,
 		},
-		memoryUsedPercent: {
-			type: FLOAT,
+		description: {
+			type: STRING(512),
 			allowNull: true,
 		},
-		netSentBytes: {
-			type: BIGINT,
+		host: {
+			type: STRING,
 			allowNull: true,
 		},
-		netReceivedBytes: {
-			type: BIGINT,
-			allowNull: true,
-		},
-		diskUsedPercent: {
-			type: FLOAT,
-			allowNull: true,
-		},
-		tps: {
+		port: {
 			type: INTEGER,
+		},
+		location: {
+			type: STRING,
 			allowNull: true,
 		},
-		timestamp: {
-			type: BIGINT,
+		latitude: {
+			type: FLOAT,
+			allowNull: true,
+		},
+		longitude: {
+			type: FLOAT,
+			allowNull: true,
+		},
+		regionName: {
+			type: STRING(255),
+			allowNull: true,
+		},
+		isDictatorship: {
+			type: BOOLEAN,
+			allowNull: true,
+		},
+		address: {
+			type: STRING,
+			allowNull: true,
+		},
+		passportName: {
+			type: STRING,
 			allowNull: true,
 		}
 	},
@@ -124,13 +158,13 @@ export const MonitorMySqlModel = mySqlConnection.define<MonitorMySqlType>(
 
 
 const getMongoData = async (query: any): Promise<any[]> => {
-	const contracts = await MonitorMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
+	const contracts = await NodeMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
 
 function updateOperation(data: any) {
 	return new Promise(async (resolve) => {
-		await MonitorMySqlModel.update(data, {
+		await NodeMySqlModel.update(data, {
 			where: {
 				_id: data._id,
 			},
@@ -140,21 +174,21 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await MonitorMySqlModel.bulkCreate(list);
+	const results = await NodeMySqlModel.bulkCreate(list);
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: MonitorMySqlType[]) {
+async function updateSequentially(updateList: NodeMySqlType[]) {
 	for (const item of updateList) {
-		console.log('update monitor', item._id);
+		console.log('update node', item._id);
 		await updateOperation(item);
 	}
 }
 
 
-export async function migrateMonitor() {
+export async function migrateNode() {
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
 
@@ -170,7 +204,7 @@ export async function migrateMonitor() {
 
 		const _idSet = new Set();
 		const _ids: string[] = [];
-		const newList: MonitorMySqlType[] = []
+		const newList: NodeMySqlType[] = []
 		list.forEach((data: any) => {
 			const { _doc } = data;
 			const { _id, ...item } = _doc;
@@ -184,7 +218,7 @@ export async function migrateMonitor() {
 			newList.push(newItem)
 		});
 
-		const preList = await MonitorMySqlModel.findAll({
+		const preList = await NodeMySqlModel.findAll({
 			where: {
 				_id: {
 					[Op.in]: _ids,
@@ -194,8 +228,8 @@ export async function migrateMonitor() {
 		if (!preList.length) {
 			await asyncManyOperation(newList)
 		} else {
-			const insertList: MonitorMySqlType[] = [];
-			const updateList: MonitorMySqlType[] = [];
+			const insertList: NodeMySqlType[] = [];
+			const updateList: NodeMySqlType[] = [];
 
 			newList.forEach((item: any) => {
 				const id = item._id;

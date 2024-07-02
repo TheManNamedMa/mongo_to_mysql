@@ -6,7 +6,10 @@ import {
 	migrateEntity,
 	migrateExecute,
 	migrateFileKey,
-	migrateMonitor
+	migrateMonitor,
+	migrateNode,
+	migrateDBlock,
+	migratePresetContract
 } from "./models"
 
 import { connectDatabase, disconnectDatabase, connectMySql, disconnectMySql } from "./connection";
@@ -24,7 +27,10 @@ const main = async () => {
 	// await migrateEntity()
 	// await migrateExecute()
 	// await migrateFileKey()
-	await migrateMonitor()
+	// await migrateMonitor()
+	// await migrateNode()
+	// await migrateDBlock()
+	await migratePresetContract()
 	console.log('migrate finish');
 
 	await disconnectDatabase()

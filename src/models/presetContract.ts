@@ -1,4 +1,4 @@
-import { Document, model, Schema } from 'mongoose'
+import { Document, model, SchemaTypes, Schema, Types } from 'mongoose'
 import { Table } from './table';
 import {
 	INTEGER,
@@ -6,100 +6,76 @@ import {
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
-	BOOLEAN,
-	DataTypes,
-	BIGINT,
 	TEXT,
+	FLOAT,
 	Op,
+	BIGINT,
+	BOOLEAN,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
-import { batchSize } from "../config";
+// import { batchSize } from "../config";
 
-const tableName = "entities"
+const batchSize = 2000
 
-type EntityType = {
-	_id: String,
-	dataId: string
-	businessAddr: string
-	hash: string
-	uri: string
-	ID: string
-	bytes: number[]
-	nodeId: string
-	chainId: number
+const tableName = "presetcontracts"
+
+type PresetContractsType = {
+	_id?: string
+	name: string
+	description: string
+	address: string
+	abi?: string
 }
 
 
-export type EntityDocument = Document & EntityType
+export type PresetContractsDocument = Document & PresetContractsType
 
-const entitySchema = new Schema(
+const executeSchema = new Schema(
 	{
-		dataId: String,
-		businessAddr: String,
-		hash: String,
-		uri: String,
-		ID: String,
-		bytes: [Number],
-		nodeId: String,
-		chainId: Number
+		name: String,
+		description: String,
+		address: String,
+		abi: String
 	},
 	{ timestamps: true, versionKey: false }
 )
 
-export const EntityMongoModel = model<EntityDocument>(Table.Entity, entitySchema)
+export const PresetContractsMongoModel = model<PresetContractsDocument>(Table.PresetContract, executeSchema)
 
 
 
-export interface EntityMySqlType
+export interface PresetContractsMySqlType
 	extends Model<
-		InferAttributes<EntityMySqlType>,
-		InferCreationAttributes<EntityMySqlType>
+		InferAttributes<PresetContractsMySqlType>,
+		InferCreationAttributes<PresetContractsMySqlType>
 	>,
-	Omit<EntityType, "ID"> {
-	entityID?: string
-}
+	PresetContractsType { }
 
 
-export const EntityMySqlModel = mySqlConnection.define<EntityMySqlType>(
+export const PresetContractsMySqlModel = mySqlConnection.define<PresetContractsMySqlType>(
 	tableName,
 	{
 		_id: {
+			type: STRING(255),
+			allowNull: false
+		},
+		name: {
+			type: STRING(255),
+			allowNull: true,
+		},
+		description: {
 			type: STRING,
 			allowNull: true,
 		},
-		dataId: {
+		address: {
 			type: STRING,
 			allowNull: true,
 		},
-		businessAddr: {
-			type: STRING,
+		abi: {
+			type: TEXT("long"),
 			allowNull: true,
-		},
-		hash: {
-			type: STRING,
-			allowNull: true,
-		},
-		uri: {
-			type: STRING,
-			allowNull: true,
-		},
-		entityID: {
-			type: STRING,
-			allowNull: true,
-		},
-		bytes: {
-			type: DataTypes.BLOB,
-			allowNull: true,
-		},
-		nodeId: {
-			type: STRING,
-			allowNull: true,
-		},
-		chainId: {
-			type: INTEGER,
-			allowNull: true,
-		},
+		}
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -110,13 +86,13 @@ export const EntityMySqlModel = mySqlConnection.define<EntityMySqlType>(
 
 
 const getMongoData = async (query: any): Promise<any[]> => {
-	const contracts = await EntityMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
+	const contracts = await PresetContractsMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
 
 function updateOperation(data: any) {
 	return new Promise(async (resolve) => {
-		await EntityMySqlModel.update(data, {
+		await PresetContractsMySqlModel.update(data, {
 			where: {
 				_id: data._id,
 			},
@@ -126,25 +102,26 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await EntityMySqlModel.bulkCreate(list);
+	const results = await PresetContractsMySqlModel.bulkCreate(list);
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: EntityMySqlType[]) {
+async function updateSequentially(updateList: PresetContractsMySqlType[]) {
 	for (const item of updateList) {
-		console.log('updateSequentially', item._id);
+		console.log('update preset contract', item._id);
 		await updateOperation(item);
 	}
 }
 
 
-export async function migrateEntity() {
+export async function migratePresetContract() {
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
 
 	let lastId = null
+
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};
@@ -155,22 +132,21 @@ export async function migrateEntity() {
 
 		const _idSet = new Set();
 		const _ids: string[] = [];
-		const newList: EntityMySqlType[] = []
+		const newList: PresetContractsMySqlType[] = []
 		list.forEach((data: any) => {
 			const { _doc } = data;
-			const { _id, ID, ...item } = _doc;
+			const { _id, ...item } = _doc;
 			const id = _id.toHexString();
 			_idSet.add(id)
 			_ids.push(id)
 			const newItem = {
 				_id: id,
-				entityID: ID,
 				...item,
 			};
 			newList.push(newItem)
 		});
 
-		const preList = await EntityMySqlModel.findAll({
+		const preList = await PresetContractsMySqlModel.findAll({
 			where: {
 				_id: {
 					[Op.in]: _ids,
@@ -180,8 +156,8 @@ export async function migrateEntity() {
 		if (!preList.length) {
 			await asyncManyOperation(newList)
 		} else {
-			const insertList: EntityMySqlType[] = [];
-			const updateList: EntityMySqlType[] = [];
+			const insertList: PresetContractsMySqlType[] = [];
+			const updateList: PresetContractsMySqlType[] = [];
 
 			newList.forEach((item: any) => {
 				const id = item._id;

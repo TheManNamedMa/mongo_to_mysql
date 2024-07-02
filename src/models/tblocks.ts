@@ -305,7 +305,7 @@ export async function migrateTBlocks() {
 			}
 		}
 		lastId = list[list.length - 1]._id;
-		console.log(`${current += list.length} ${lastId}`)
+		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}
 
 

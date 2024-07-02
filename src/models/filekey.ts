@@ -175,7 +175,7 @@ export async function migrateFileKey() {
 			}
 		}
 		lastId = list[list.length - 1]._id;
-		console.log(`${current += list.length} ${lastId}`)
+		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}
 
 
