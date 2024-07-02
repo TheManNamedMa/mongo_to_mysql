@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
-import { mongoUrl, mongoPassword, mongoUser, dbName } from "../config";
+import { mongoUrl, mongoPassword, mongoUser, mongoDbName } from "../config";
 
 export const connectDatabase = async () => {
 	// root:Lattice123@
 	await mongoose
 		.connect(`${mongoUrl}`, {
-			dbName,
+			dbName: mongoDbName,
 			user: mongoUser,
 			pass: mongoPassword,
 		})

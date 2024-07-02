@@ -46,7 +46,7 @@ export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: DataTypes.STRING,
+			type: STRING(255),
 			allowNull: false
 		},
 		chainId: {
@@ -74,6 +74,7 @@ function asyncOperation(data: any) {
 			_id: id,
 			...item
 		}
+
 		if (!preInfo) {
 			await AccountsMySqlModel.create(newItem)
 		} else {

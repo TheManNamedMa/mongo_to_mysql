@@ -1,6 +1,6 @@
 import { Sequelize } from "sequelize";
 
-import { dbName, mysqlPort, mysqlUrl, mysqlUser, mysqlPassword } from "../config";
+import { mysqlDbName, mysqlPort, mysqlUrl, mysqlUser, mysqlPassword } from "../config";
 
 // const mySqlConnection = createConnection({
 // 	host: mysqlUrl,
@@ -28,10 +28,17 @@ import { dbName, mysqlPort, mysqlUrl, mysqlUser, mysqlPassword } from "../config
 // 	database: dbName,
 // 	user: mysqlUser,
 // 	password: mysqlPassword,
-const mySqlConnection = new Sequelize(dbName, mysqlUser, mysqlPassword, {
+const mySqlConnection = new Sequelize(mysqlDbName, mysqlUser, mysqlPassword, {
 	host: mysqlUrl,
 	dialect: "mysql",
 	port: mysqlPort,
+	logging: false,
+	pool: {
+		max: 5,
+		min: 0,
+		acquire: 30000,
+		idle: 10000,
+	},
 });
 
 const connectMySql = async () => {

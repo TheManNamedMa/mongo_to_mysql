@@ -8,14 +8,18 @@ import {
 	InferCreationAttributes,
 	STRING,
 	BOOLEAN,
-	DATE,
 	DataTypes,
 	BIGINT,
 	TEXT,
+	Op,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+// import { batchSize } from "../config";
 
 const tableName = "tblocks";
+
+const batchSize = 20
+
 
 type TBlockType = TBlock & {
 	chain: number;
@@ -74,17 +78,17 @@ const TBlockMongoModel = model<TBlockDocument>(Table.TBlock, tblockSchema);
 
 export interface TBlockMySqlType
 	extends Model<
-			InferAttributes<TBlockMySqlType>,
-			InferCreationAttributes<TBlockMySqlType>
-		>,
-		TBlockType {}
+		InferAttributes<TBlockMySqlType>,
+		InferCreationAttributes<TBlockMySqlType>
+	>,
+	TBlockType { }
 // 定义模型
 
 export const TBlockMySqlModel = mySqlConnection.define<TBlockMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: DataTypes.STRING,
+			type: STRING(255),
 			allowNull: false,
 		},
 		amount: {
@@ -96,7 +100,7 @@ export const TBlockMySqlModel = mySqlConnection.define<TBlockMySqlType>(
 			allowNull: true,
 		},
 		code: {
-			type: TEXT,
+			type: TEXT("long"),
 			allowNull: true,
 		},
 		codeHash: {
@@ -121,7 +125,7 @@ export const TBlockMySqlModel = mySqlConnection.define<TBlockMySqlType>(
 		},
 		hub: {
 			allowNull: true,
-			type: DataTypes.TEXT,
+			type: DataTypes.TEXT("long"),
 			get() {
 				const value = (this.getDataValue("hub") ||
 					JSON.stringify([])) as unknown as string;
@@ -206,44 +210,103 @@ export const TBlockMySqlModel = mySqlConnection.define<TBlockMySqlType>(
 	}
 );
 
-const getMongoTBlocks = async () => {
-	const contracts = await TBlockMongoModel.find();
-	return contracts;
+const getMongoData = async (query: any): Promise<TBlockType[]> => {
+	const list = await TBlockMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
+	return list;
 };
 
-function asyncOperation(data: any) {
+
+const asyncManyOperation = async (list: any) => {
+	const results = await TBlockMySqlModel.bulkCreate(list);
+	return results;
+};
+
+
+function updateOperation(data: any) {
 	return new Promise(async (resolve) => {
-		const { _doc } = data;
-		const { _id, ...item } = _doc;
-		const id = _id.toHexString();
-		const preInfo = await TBlockMySqlModel.findOne({ where: { _id: id } });
-		const newItem = {
-			_id: id,
-			...item,
-		};
-		if (!preInfo) {
-			await TBlockMySqlModel.create(newItem);
-		} else {
-			await TBlockMySqlModel.update(newItem, {
-				where: {
-					_id: id,
-				},
-			});
-		}
+		await TBlockMySqlModel.update(data, {
+			where: {
+				_id: data._id,
+			},
+		});
 		resolve({});
 	});
 }
 
+async function updateSequentially(updateList: TBlockMySqlType[]) {
+	for (const item of updateList) {
+		console.log('updateSequentially', item._id);
+		await updateOperation(item);
+	}
+}
+
+
 // 迁移链数据库
 export async function migrateTBlocks() {
-	const list = (await getMongoTBlocks()) || [];
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
 
-	const promises = list.map(async (item) => {
-		return await asyncOperation(item);
-	});
 
-	// 等待所有异步操作完成
-	const results = await Promise.all(promises);
+	let lastId = null
+	let current = 0
+	while (true) {
+		const query: any = lastId ? { _id: { $gt: lastId } } : {};
+		const list = (await getMongoData(query)) || [];
+		if (list.length === 0) {
+			break;
+		}
+
+
+		const _idSet = new Set();
+		const _ids: string[] = [];
+		const newList: TBlockMySqlType[] = []
+		list.forEach((data: any) => {
+			const { _doc } = data;
+			const { _id, ...item } = _doc;
+			const id = _id.toHexString();
+			_idSet.add(id)
+			_ids.push(id)
+			const newItem = {
+				_id: id,
+				...item,
+			};
+			newList.push(newItem)
+		});
+
+
+		const preList = await TBlockMySqlModel.findAll({
+			where: {
+				_id: {
+					[Op.in]: _ids,
+				},
+			},
+		});
+
+		if (!preList.length) {
+			await asyncManyOperation(newList)
+		} else {
+			const insertList: TBlockMySqlType[] = [];
+			const updateList: TBlockMySqlType[] = [];
+
+			newList.forEach((item: any) => {
+				const id = item._id;
+				if (!_idSet.has(id)) {
+					insertList.push(item);
+				} else {
+					updateList.push(item);
+				}
+			});
+
+			if (insertList.length) {
+				await asyncManyOperation(insertList)
+			}
+			if (updateList.length) {
+				await updateSequentially(updateList);
+			}
+		}
+		lastId = list[list.length - 1]._id;
+		console.log(`${current += list.length} ${lastId}`)
+	}
+
+
 }

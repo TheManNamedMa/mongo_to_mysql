@@ -1,8 +1,9 @@
 import {
 	// migrateAccounts,
-	migrateChains,
+	// migrateChains,
 	// migrateContracts,
-	// migrateTBlocks
+	migrateTBlocks,
+	migrateEntity
 } from "./models"
 
 import { connectDatabase, disconnectDatabase, connectMySql, disconnectMySql } from "./connection";
@@ -13,11 +14,11 @@ const main = async () => {
 	await connectMySql()
 
 	console.log('migrate start');
-	await migrateChains()
+	// await migrateChains()
 	// await migrateAccounts()
-	// await migrateTBlocks()
+	await migrateTBlocks()
 	// await migrateContracts()
-
+	await migrateEntity()
 	console.log('migrate finish');
 
 	await disconnectDatabase()

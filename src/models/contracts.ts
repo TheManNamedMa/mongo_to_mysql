@@ -11,10 +11,12 @@ import {
 	BOOLEAN,
 	DATE,
 	DataTypes,
+	TEXT
 } from "sequelize";
 
 const tableName = "contracts";
 export interface Contract {
+	_id?: string
 	chainId: number;
 	nodeId: string;
 	internal: boolean;
@@ -112,14 +114,18 @@ const ContractMongoModel = model<ContractDocument>(
 
 export interface ContractsMySqlType
 	extends Model<
-			InferAttributes<ContractsMySqlType>,
-			InferCreationAttributes<ContractsMySqlType>
-		>,
-		Contract {}
+		InferAttributes<ContractsMySqlType>,
+		InferCreationAttributes<ContractsMySqlType>
+	>,
+	Contract { }
 // 定义模型
 export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 	tableName,
 	{
+		_id: {
+			type: STRING(255),
+			allowNull: false
+		},
 		chainId: {
 			type: INTEGER,
 			allowNull: true,
@@ -146,11 +152,11 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 			allowNull: true,
 		},
 		abi: {
-			type: STRING,
+			type: TEXT('long'),
 			allowNull: true,
 		},
 		bytecode: {
-			type: STRING,
+			type: TEXT('long'),
 			allowNull: true,
 		},
 		fileName: {
@@ -171,12 +177,8 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 			defaultValue: 0,
 		},
 		tblock: {
-			type: STRING, // 假设tblock应该是数字类型
+			type: STRING,
 			allowNull: true,
-			references: {
-				model: "tblock",
-				key: "_id",
-			},
 		},
 		status: {
 			type: INTEGER,
@@ -253,28 +255,46 @@ const getMongoContracts = async () => {
 	return contracts;
 };
 
+function asyncOperation(data: any) {
+	return new Promise(async (resolve, reject) => {
+		const { _doc } = data;
+		const { _id, tblock: _tblock, ...item } = _doc;
+		const tblock = _tblock?.toHexString();
+		const id = _id.toHexString();
+		const preInfo = await ContractsMySqlModel.findOne({ where: { _id: id } });
+		const newItem = {
+			_id: id,
+			tblock,
+			...item,
+		};
+		try {
+
+			if (!preInfo) {
+				await ContractsMySqlModel.create(newItem)
+			} else {
+				await ContractsMySqlModel.update(newItem, {
+					where: {
+						_id: id
+					}
+				})
+			}
+		} catch (error) {
+			console.error(error);
+			console.dir(newItem);
+
+		}
+		resolve({});
+	})
+}
+
 // 迁移链数据库
 export async function migrateContracts() {
 	const list = (await getMongoContracts()) || [];
 	// 同步数据库
 	await mySqlConnection.sync({ force: false });
-
-	list.forEach(async ({ _doc }: any) => {
-		const { _id, ...item } = _doc;
-		if (item.tblock) {
-			console.dir(item);
-		}
-		// const chainInfo = await ContractsMySqlModel.findOne({ where: { ...item } })
-
-		// if (!chainInfo) {
-		// 	await ContractsMySqlModel.create(item)
-		// } else {
-		// 	await ContractsMySqlModel.update(item, {
-		// 		where: {
-		// 			...item
-		// 		}
-		// 	})
-		// }
+	const promises = list.map(async (item) => {
+		return await asyncOperation(item);
 	});
-	return Promise.resolve();
+	const results = await Promise.all(promises);
+
 }

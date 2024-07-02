@@ -6,6 +6,7 @@ import {
 	Model,
 	InferAttributes,
 	InferCreationAttributes,
+	TEXT,
 	STRING,
 } from "sequelize";
 
@@ -45,7 +46,7 @@ export const ChainMySqlModel = mySqlConnection.define<ChainMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING,
+			type: STRING(255),
 			allowNull: false
 		},
 		chainId: {
