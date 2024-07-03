@@ -6,18 +6,15 @@ import {
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
-	TEXT,
-	FLOAT,
-	Op,
-	BIGINT,
-	BOOLEAN,
-	ARRAY,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
-// import { batchSize } from "../config";
+import { migrateConfig } from "../config";
 
-const batchSize = 2000
+const { contracts } = migrateConfig;
+
+const { batchSize, startId } = contracts
+
 
 const tableName = "accounts"
 
@@ -96,7 +93,7 @@ const asyncManyOperation = async (list: any) => {
 
 export async function migrateAccounts() {
 
-	let lastId = null
+	let lastId = startId
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};

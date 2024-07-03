@@ -11,14 +11,16 @@ import {
 	DataTypes,
 	BIGINT,
 	TEXT,
-	Op,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
-// import { batchSize } from "../config";
+import { migrateConfig } from "../config";
+
+const { tBlocks } = migrateConfig;
+
+const { batchSize, startId } = tBlocks
 
 const tableName = "tBlocks";
 
-const batchSize = 20
 
 
 type TBlockType = TBlock & {
@@ -277,7 +279,7 @@ export async function migrateTBlocks() {
 
 
 
-	let lastId = null
+	let lastId: any = startId
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};
@@ -289,8 +291,7 @@ export async function migrateTBlocks() {
 
 		const _idSet = new Set();
 		const _ids: string[] = [];
-		const newList: TBlockMySqlType[] = []
-		list.forEach((data: any) => {
+		const newList: TBlockMySqlType[] = list.map((data: any) => {
 			const { _doc } = data;
 			const { _id, ...item } = _doc;
 			const id = _id.toHexString();
@@ -300,42 +301,14 @@ export async function migrateTBlocks() {
 				_id: id,
 				...item,
 			};
-			newList.push(newItem)
+			return (newItem)
 		});
 
-		// const preList = await TBlockMySqlModel.findAll({
-		// 	where: {
-		// 		_id: {
-		// 			[Op.in]: _ids,
-		// 		},
-		// 	},
-		// });
 
 		await asyncManyOperation(newList)
 
 
-		// if (!preList.length) {
-		// 	await asyncManyOperation(newList)
-		// } else {
-		// 	const insertList: TBlockMySqlType[] = [];
-		// 	const updateList: TBlockMySqlType[] = [];
 
-		// 	newList.forEach((item: any) => {
-		// 		const id = item._id;
-		// 		if (!_idSet.has(id)) {
-		// 			insertList.push(item);
-		// 		} else {
-		// 			updateList.push(item);
-		// 		}
-		// 	});
-
-		// 	if (insertList.length) {
-		// 		await asyncManyOperation(insertList)
-		// 	}
-		// 	if (updateList.length) {
-		// 		await updateSequentially(updateList);
-		// 	}
-		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

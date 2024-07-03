@@ -11,12 +11,16 @@ import {
 	Op,
 	BIGINT,
 	BOOLEAN,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { node } = migrateConfig;
 
-const batchSize = 2000
+const { batchSize, startId } = node
+
+
 
 const tableName = "nodes"
 
@@ -79,7 +83,10 @@ export interface NodeMySqlType
 		InferAttributes<NodeMySqlType>,
 		InferCreationAttributes<NodeMySqlType>
 	>,
-	NodeType { }
+	NodeType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const NodeMySqlModel = mySqlConnection.define<NodeMySqlType>(
@@ -145,6 +152,14 @@ export const NodeMySqlModel = mySqlConnection.define<NodeMySqlType>(
 			type: STRING,
 			allowNull: true,
 		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 		passportName: {
 			type: STRING,
 			allowNull: true,
@@ -181,6 +196,8 @@ const asyncManyOperation = async (list: any) => {
 			"isDictatorship",
 			"address",
 			"passportName",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -193,7 +210,7 @@ export async function migrateNode() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

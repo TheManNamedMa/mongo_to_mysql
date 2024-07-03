@@ -1,22 +1,21 @@
 import { Document, model, SchemaTypes, Schema, Types } from 'mongoose'
 import { Table } from './table';
 import {
-	INTEGER,
 	Model,
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
 	TEXT,
-	FLOAT,
-	Op,
-	BIGINT,
-	BOOLEAN,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { presetContract } = migrateConfig;
 
-const batchSize = 2000
+const { batchSize, startId } = presetContract
+
+
 
 const tableName = "presetContracts"
 
@@ -50,7 +49,10 @@ export interface PresetContractsMySqlType
 		InferAttributes<PresetContractsMySqlType>,
 		InferCreationAttributes<PresetContractsMySqlType>
 	>,
-	PresetContractsType { }
+	PresetContractsType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const PresetContractsMySqlModel = mySqlConnection.define<PresetContractsMySqlType>(
@@ -76,7 +78,15 @@ export const PresetContractsMySqlModel = mySqlConnection.define<PresetContractsM
 		abi: {
 			type: TEXT("long"),
 			allowNull: true,
-		}
+		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -110,6 +120,8 @@ const asyncManyOperation = async (list: any) => {
 			"description",
 			"address",
 			"abi",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -129,7 +141,7 @@ export async function migratePresetContract() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

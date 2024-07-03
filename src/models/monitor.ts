@@ -1,4 +1,4 @@
-import { Document, model, SchemaTypes, Schema, Types } from 'mongoose'
+import { Document, model, Schema } from 'mongoose'
 import { Table } from './table';
 import {
 	INTEGER,
@@ -6,16 +6,19 @@ import {
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
-	TEXT,
 	FLOAT,
-	Op,
 	BIGINT,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
-// import { batchSize } from "../config";
+import { migrateConfig } from "../config";
 
-const batchSize = 2000
+const { monitor } = migrateConfig;
+
+const { batchSize, startId } = monitor
+
+
 
 const tableName = "monitors"
 
@@ -68,7 +71,10 @@ export interface MonitorMySqlType
 		InferAttributes<MonitorMySqlType>,
 		InferCreationAttributes<MonitorMySqlType>
 	>,
-	MonitorType { }
+	MonitorType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const MonitorMySqlModel = mySqlConnection.define<MonitorMySqlType>(
@@ -114,7 +120,15 @@ export const MonitorMySqlModel = mySqlConnection.define<MonitorMySqlType>(
 		timestamp: {
 			type: BIGINT,
 			allowNull: true,
-		}
+		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -143,6 +157,8 @@ const asyncManyOperation = async (list: any) => {
 			"diskUsedPercent",
 			"tps",
 			"timestamp",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -154,7 +170,7 @@ export async function migrateMonitor() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

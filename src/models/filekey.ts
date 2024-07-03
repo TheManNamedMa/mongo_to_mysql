@@ -1,20 +1,19 @@
-import { Document, model, SchemaTypes, Schema, Types } from 'mongoose'
+import { Document, model, Schema } from 'mongoose'
 import { Table } from './table';
 import {
-	INTEGER,
 	Model,
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
-	BIGINT,
 	TEXT,
-	Op,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { fileKey } = migrateConfig;
 
-const batchSize = 200
+const { batchSize, startId } = fileKey
 
 const tableName = "fileKeys"
 
@@ -48,7 +47,10 @@ export interface FileKeyMySqlType
 		InferAttributes<FileKeyMySqlType>,
 		InferCreationAttributes<FileKeyMySqlType>
 	>,
-	FileKeyType { }
+	FileKeyType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const FileKeyMySqlModel = mySqlConnection.define<FileKeyMySqlType>(
@@ -74,7 +76,15 @@ export const FileKeyMySqlModel = mySqlConnection.define<FileKeyMySqlType>(
 		linker: {
 			type: STRING,
 			allowNull: true,
-		}
+		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -97,6 +107,8 @@ const asyncManyOperation = async (list: any) => {
 			"filekey",
 			"privateKey",
 			"linker",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -108,7 +120,7 @@ export async function migrateFileKey() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

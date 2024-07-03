@@ -8,12 +8,15 @@ import {
 	STRING,
 	TEXT,
 	Op,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { rootKey } = migrateConfig;
 
-const batchSize = 2000
+const { batchSize, startId } = rootKey
+
 
 const tableName = "rootKeys"
 
@@ -43,7 +46,10 @@ export interface RootKeyMySqlType
 		InferAttributes<RootKeyMySqlType>,
 		InferCreationAttributes<RootKeyMySqlType>
 	>,
-	RootKeyType { }
+	RootKeyType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const RootKeyMySqlModel = mySqlConnection.define<RootKeyMySqlType>(
@@ -61,6 +67,14 @@ export const RootKeyMySqlModel = mySqlConnection.define<RootKeyMySqlType>(
 		jsonKey: {
 			type: TEXT('medium'),
 			allowNull: true,
+		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
 		},
 	},
 	{
@@ -93,6 +107,8 @@ const asyncManyOperation = async (list: any) => {
 		updateOnDuplicate: [
 			"publicKey",
 			"jsonKey",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -100,19 +116,12 @@ const asyncManyOperation = async (list: any) => {
 
 
 
-async function updateSequentially(updateList: RootKeyMySqlType[]) {
-	for (const item of updateList) {
-		console.log('update root key', item._id);
-		await updateOperation(item);
-	}
-}
-
 
 export async function migrateRootKey() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

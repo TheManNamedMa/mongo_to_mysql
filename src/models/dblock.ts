@@ -11,10 +11,13 @@ import {
 	BIGINT,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { dBlock } = migrateConfig;
 
-const batchSize = 500
+const { batchSize, startId } = dBlock
+
+
 
 const tableName = "dBlocks"
 
@@ -249,7 +252,7 @@ export async function migrateDBlock() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {
@@ -274,40 +277,16 @@ export async function migrateDBlock() {
 			};
 			newList.push(newItem)
 		});
+		try {
+			await asyncManyOperation(newList)
+		} catch (error) {
+			console.log(error)
+			console.log(newList)
+			console.log(`${tableName} ${current += list.length} ${lastId}`)
+			throw error
+		}
 
-		await asyncManyOperation(newList)
 
-
-		// const preList = await DBlockMySqlModel.findAll({
-		// 	where: {
-		// 		_id: {
-		// 			[Op.in]: _ids,
-		// 		},
-		// 	},
-		// });
-		// if (!preList.length) {
-		// 	await asyncManyOperation(newList)
-		// } else {
-		// 	const insertList: DBlockMySqlType[] = [];
-		// 	const updateList: DBlockMySqlType[] = [];
-
-		// 	newList.forEach((item: any) => {
-		// 		const id = item._id;
-		// 		if (!_idSet.has(id)) {
-		// 			insertList.push(item);
-		// 		} else {
-		// 			updateList.push(item);
-		// 		}
-		// 	});
-
-		// 	if (insertList.length) {
-		// 		await asyncManyOperation(insertList)
-		// 	}
-		// 	if (updateList.length) {
-
-		// 		await updateSequentially(updateList);
-		// 	}
-		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

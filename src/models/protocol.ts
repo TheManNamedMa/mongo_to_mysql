@@ -12,12 +12,14 @@ import {
 	BIGINT,
 	BOOLEAN,
 	ARRAY,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { protocol } = migrateConfig;
 
-const batchSize = 2000
+const { batchSize, startId } = protocol
 
 const tableName = "protocols"
 
@@ -57,7 +59,10 @@ export interface ProtocolMySqlType
 		InferAttributes<ProtocolMySqlType>,
 		InferCreationAttributes<ProtocolMySqlType>
 	>,
-	ProtocolType { }
+	ProtocolType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const ProtocolMySqlModel = mySqlConnection.define<ProtocolMySqlType>(
@@ -106,6 +111,14 @@ export const ProtocolMySqlModel = mySqlConnection.define<ProtocolMySqlType>(
 			type: INTEGER,
 			allowNull: true,
 		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -141,7 +154,9 @@ const asyncManyOperation = async (list: any) => {
 			"title",
 			"bytes",
 			"nodeId",
-			"chainId"
+			"chainId",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -149,20 +164,10 @@ const asyncManyOperation = async (list: any) => {
 
 
 
-async function updateSequentially(updateList: ProtocolMySqlType[]) {
-	for (const item of updateList) {
-		console.log('update protocol contract', item._id);
-		await updateOperation(item);
-	}
-}
-
 
 export async function migrateProtocol() {
 
-
-
-	let lastId = null
-
+	let lastId = startId
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};

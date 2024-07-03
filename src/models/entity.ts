@@ -11,10 +11,15 @@ import {
 	BIGINT,
 	TEXT,
 	Op,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-import { batchSize } from "../config";
+const { contracts } = migrateConfig;
+
+const { batchSize, startId } = contracts
+
 
 const tableName = "entities"
 
@@ -58,6 +63,8 @@ export interface EntityMySqlType
 	>,
 	Omit<EntityType, "ID"> {
 	entityID?: string
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 
@@ -101,6 +108,14 @@ export const EntityMySqlModel = mySqlConnection.define<EntityMySqlType>(
 			type: INTEGER,
 			allowNull: true,
 		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -115,16 +130,6 @@ const getMongoData = async (query: any): Promise<any[]> => {
 	return contracts;
 };
 
-function updateOperation(data: any) {
-	return new Promise(async (resolve) => {
-		await EntityMySqlModel.update(data, {
-			where: {
-				_id: data._id,
-			},
-		});
-		resolve({});
-	});
-}
 
 const asyncManyOperation = async (list: any) => {
 	const results = await EntityMySqlModel.bulkCreate(list, {
@@ -138,6 +143,8 @@ const asyncManyOperation = async (list: any) => {
 			"bytes",
 			"nodeId",
 			"chainId",
+			"createdAt",
+			"updatedAt"
 		]
 	});
 	return results;
@@ -150,7 +157,7 @@ export async function migrateEntity() {
 
 
 
-	let lastId = null
+	let lastId = startId
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};

@@ -10,12 +10,13 @@ import {
 	STRING,
 	BOOLEAN,
 	DATE,
-	DataTypes,
 	TEXT
 } from "sequelize";
-// import { batchSize } from "../config";
+import { migrateConfig } from "../config";
 
-const batchSize = 10
+const { contracts } = migrateConfig;
+
+const { batchSize, startId } = contracts
 
 const tableName = "contracts";
 export interface Contract {
@@ -120,7 +121,12 @@ export interface ContractsMySqlType
 		InferAttributes<ContractsMySqlType>,
 		InferCreationAttributes<ContractsMySqlType>
 	>,
-	Contract { }
+	Contract {
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+
 // 定义模型
 export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 	tableName,
@@ -246,6 +252,14 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 				this.setDataValue("_arguments", v);
 			},
 		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -266,7 +280,7 @@ const asyncManyOperation = async (list: any) => {
 		updateOnDuplicate: ["chainId", "nodeId", "internal", "isPreset", "account",
 			"address", "name", "abi", "_arguments", "bytecode", "fileName", "hash", "joule", "tblock",
 			"status", "lifecycle", "isBanned", "isPreset", "isProtected", "isPublished",
-			"publishedAt", "language", "description", "sourceCodeUrl", "editedAt", "version"
+			"publishedAt", "language", "description", "sourceCodeUrl", "editedAt", "version", "createdAt", "updatedAt"
 		],
 	});
 	return results;
@@ -275,7 +289,7 @@ const asyncManyOperation = async (list: any) => {
 // 迁移链数据库
 export async function migrateContracts() {
 
-	let lastId = null
+	let lastId = startId
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};

@@ -9,12 +9,15 @@ import {
 	BIGINT,
 	TEXT,
 	Op,
+	DATE,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
+import { migrateConfig } from "../config";
 
-// import { batchSize } from "../config";
+const { execute } = migrateConfig;
 
-const batchSize = 50
+const { batchSize, startId } = execute
+
 
 const tableName = "executes"
 
@@ -80,7 +83,10 @@ export interface ExecuteMySqlType
 		InferAttributes<ExecuteMySqlType>,
 		InferCreationAttributes<ExecuteMySqlType>
 	>,
-	ExecuteType { }
+	ExecuteType {
+	createdAt: Date;
+	updatedAt: Date;
+}
 
 
 export const ExecuteMySqlModel = mySqlConnection.define<ExecuteMySqlType>(
@@ -148,7 +154,15 @@ export const ExecuteMySqlModel = mySqlConnection.define<ExecuteMySqlType>(
 		tblock: {
 			type: STRING,
 			allowNull: true,
-		}
+		},
+		createdAt: {
+			allowNull: true,
+			type: DATE,
+		},
+		updatedAt: {
+			allowNull: true,
+			type: DATE,
+		},
 	},
 	{
 		tableName: tableName, // 指定表名
@@ -179,6 +193,8 @@ const asyncManyOperation = async (list: any) => {
 			"hash",
 			"joule",
 			"tblock",
+			"createdAt",
+			"updatedAt"
 		],
 	});
 	return results;
@@ -191,7 +207,7 @@ export async function migrateExecute() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {

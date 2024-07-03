@@ -6,18 +6,15 @@ import {
 	InferAttributes,
 	InferCreationAttributes,
 	STRING,
-	TEXT,
-	FLOAT,
-	Op,
-	BIGINT,
-	BOOLEAN,
-	ARRAY,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
-// import { batchSize } from "../config";
+import { migrateConfig } from "../config";
 
-const batchSize = 2000
+const { chains } = migrateConfig;
+
+const { batchSize, startId } = chains
+
 
 const tableName = "chains"
 
@@ -101,7 +98,7 @@ export async function migrateChains() {
 
 
 
-	let lastId = null
+	let lastId = startId
 
 	let current = 0
 	while (true) {
