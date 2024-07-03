@@ -18,7 +18,7 @@ import { mySqlConnection } from "../connection";
 
 const batchSize = 2000
 
-const tableName = "presetcontracts"
+const tableName = "presetContracts"
 
 type PresetContractsType = {
 	_id?: string
@@ -57,7 +57,8 @@ export const PresetContractsMySqlModel = mySqlConnection.define<PresetContractsM
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		name: {
@@ -102,7 +103,15 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await PresetContractsMySqlModel.bulkCreate(list);
+	const results = await PresetContractsMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"name",
+			"description",
+			"address",
+			"abi",
+		],
+	});
 	return results;
 };
 
@@ -117,8 +126,8 @@ async function updateSequentially(updateList: PresetContractsMySqlType[]) {
 
 
 export async function migratePresetContract() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 
@@ -146,36 +155,36 @@ export async function migratePresetContract() {
 			newList.push(newItem)
 		});
 
-		const preList = await PresetContractsMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: PresetContractsMySqlType[] = [];
-			const updateList: PresetContractsMySqlType[] = [];
+		await asyncManyOperation(newList)
+		// const preList = await PresetContractsMySqlModel.findAll({
+		// 	where: {
+		// 		_id: {
+		// 			[Op.in]: _ids,
+		// 		},
+		// 	},
+		// });
+		// if (!preList.length) {
+		// } else {
+		// 	const insertList: PresetContractsMySqlType[] = [];
+		// 	const updateList: PresetContractsMySqlType[] = [];
 
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
+		// 	newList.forEach((item: any) => {
+		// 		const id = item._id;
+		// 		if (!_idSet.has(id)) {
+		// 			insertList.push(item);
+		// 		} else {
+		// 			updateList.push(item);
+		// 		}
+		// 	});
 
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
+		// 	if (insertList.length) {
+		// 		await asyncManyOperation(insertList)
+		// 	}
+		// 	if (updateList.length) {
 
-				await updateSequentially(updateList);
-			}
-		}
+		// 		await updateSequentially(updateList);
+		// 	}
+		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

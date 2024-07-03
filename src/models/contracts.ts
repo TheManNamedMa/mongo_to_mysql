@@ -1,4 +1,4 @@
-import { TBlockMySqlModel } from "./";
+
 import { mySqlConnection } from "../connection";
 import { Table } from "./table";
 import { Document, model, Schema, SchemaTypes, Types } from "mongoose";
@@ -13,6 +13,9 @@ import {
 	DataTypes,
 	TEXT
 } from "sequelize";
+// import { batchSize } from "../config";
+
+const batchSize = 10
 
 const tableName = "contracts";
 export interface Contract {
@@ -123,7 +126,8 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		chainId: {
@@ -250,51 +254,53 @@ export const ContractsMySqlModel = mySqlConnection.define<ContractsMySqlType>(
 	}
 );
 
-const getMongoContracts = async () => {
-	const contracts = await ContractMongoModel.find();
+const getMongoData = async (query: any): Promise<any[]> => {
+	const contracts = await ContractMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
 
-function asyncOperation(data: any) {
-	return new Promise(async (resolve, reject) => {
-		const { _doc } = data;
-		const { _id, tblock: _tblock, ...item } = _doc;
-		const tblock = _tblock?.toHexString();
-		const id = _id.toHexString();
-		const preInfo = await ContractsMySqlModel.findOne({ where: { _id: id } });
-		const newItem = {
-			_id: id,
-			tblock,
-			...item,
-		};
-		try {
 
-			if (!preInfo) {
-				await ContractsMySqlModel.create(newItem)
-			} else {
-				await ContractsMySqlModel.update(newItem, {
-					where: {
-						_id: id
-					}
-				})
-			}
-		} catch (error) {
-			console.error(error);
-			console.dir(newItem);
-
-		}
-		resolve({});
-	})
-}
+const asyncManyOperation = async (list: any) => {
+	const results = await ContractsMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: ["chainId", "nodeId", "internal", "isPreset", "account",
+			"address", "name", "abi", "_arguments", "bytecode", "fileName", "hash", "joule", "tblock",
+			"status", "lifecycle", "isBanned", "isPreset", "isProtected", "isPublished",
+			"publishedAt", "language", "description", "sourceCodeUrl", "editedAt", "version"
+		],
+	});
+	return results;
+};
 
 // 迁移链数据库
 export async function migrateContracts() {
-	const list = (await getMongoContracts()) || [];
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
-	const promises = list.map(async (item) => {
-		return await asyncOperation(item);
-	});
-	const results = await Promise.all(promises);
+
+	let lastId = null
+	let current = 0
+	while (true) {
+		const query: any = lastId ? { _id: { $gt: lastId } } : {};
+		const list = (await getMongoData(query)) || [];
+		if (list.length === 0) {
+			break;
+		}
+
+		const newList: Contract[] = list.map((data: any) => {
+			const { _doc } = data;
+			const { _id, tblock: _tblock, ...item } = _doc;
+			const id = _id.toHexString();
+			const tblock = _tblock ? _tblock.toHexString() : null;
+			const newItem = {
+				_id: id,
+				tblock,
+				...item,
+			};
+			return newItem
+		});
+		await asyncManyOperation(newList)
+
+		lastId = list[list.length - 1]._id;
+		console.log(`${tableName} ${current += list.length} ${lastId}`)
+	}
+
 
 }

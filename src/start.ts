@@ -14,17 +14,17 @@ import {
 	migrateRootKey
 } from "./models"
 
-import { connectDatabase, disconnectDatabase, connectMySql, disconnectMySql } from "./connection";
+import { connectDatabase, disconnectDatabase, connectMySql, disconnectMySql, mySqlConnection } from "./connection";
 
 
 const main = async () => {
 	await connectDatabase()
 	await connectMySql()
-
+	await mySqlConnection.sync({ force: false });
 	console.log('migrate start');
-	await migrateAccounts()
-	await migrateChains()
-	await migrateTBlocks()
+	// await migrateAccounts()
+	// await migrateChains()
+	// await migrateTBlocks()
 	await migrateContracts()
 	await migrateEntity()
 	await migrateExecute()

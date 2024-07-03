@@ -15,7 +15,7 @@ import { mySqlConnection } from "../connection";
 
 const batchSize = 2000
 
-const tableName = "rootkeys"
+const tableName = "rootKeys"
 
 type RootKeyType = {
 	_id?: string
@@ -50,7 +50,8 @@ export const RootKeyMySqlModel = mySqlConnection.define<RootKeyMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		publicKey: {
@@ -87,7 +88,13 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await RootKeyMySqlModel.bulkCreate(list);
+	const results = await RootKeyMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"publicKey",
+			"jsonKey",
+		],
+	});
 	return results;
 };
 
@@ -102,8 +109,8 @@ async function updateSequentially(updateList: RootKeyMySqlType[]) {
 
 
 export async function migrateRootKey() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 
@@ -131,36 +138,36 @@ export async function migrateRootKey() {
 			newList.push(newItem)
 		});
 
-		const preList = await RootKeyMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: RootKeyMySqlType[] = [];
-			const updateList: RootKeyMySqlType[] = [];
+		await asyncManyOperation(newList)
+		// const preList = await RootKeyMySqlModel.findAll({
+		// 	where: {
+		// 		_id: {
+		// 			[Op.in]: _ids,
+		// 		},
+		// 	},
+		// });
+		// if (!preList.length) {
+		// } else {
+		// 	const insertList: RootKeyMySqlType[] = [];
+		// 	const updateList: RootKeyMySqlType[] = [];
 
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
+		// 	newList.forEach((item: any) => {
+		// 		const id = item._id;
+		// 		if (!_idSet.has(id)) {
+		// 			insertList.push(item);
+		// 		} else {
+		// 			updateList.push(item);
+		// 		}
+		// 	});
 
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
+		// 	if (insertList.length) {
+		// 		await asyncManyOperation(insertList)
+		// 	}
+		// 	if (updateList.length) {
 
-				await updateSequentially(updateList);
-			}
-		}
+		// 		await updateSequentially(updateList);
+		// 	}
+		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

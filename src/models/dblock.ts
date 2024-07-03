@@ -8,19 +8,15 @@ import {
 	InferCreationAttributes,
 	STRING,
 	TEXT,
-	FLOAT,
-	Op,
 	BIGINT,
-	BOOLEAN,
-	INET,
 } from "sequelize";
 import { mySqlConnection } from "../connection";
 
 // import { batchSize } from "../config";
 
-const batchSize = 2000
+const batchSize = 500
 
-const tableName = "dblocks"
+const tableName = "dBlocks"
 
 type DBlockType = DBlock & {
 	_id?: string
@@ -94,7 +90,8 @@ export const DBlockMySqlModel = mySqlConnection.define<DBlockMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		chainId: {
@@ -217,35 +214,40 @@ const getMongoData = async (query: any): Promise<any[]> => {
 	return contracts;
 };
 
-function updateOperation(data: any) {
-	return new Promise(async (resolve) => {
-		await DBlockMySqlModel.update(data, {
-			where: {
-				_id: data._id,
-			},
-		});
-		resolve({});
-	});
-}
-
 const asyncManyOperation = async (list: any) => {
-	const results = await DBlockMySqlModel.bulkCreate(list);
+	const results = await DBlockMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"chainId",
+			"anchors",
+			"coinbase",
+			"contracts",
+			"difficulty",
+			"extra",
+			"hash",
+			"parentHash",
+			"ledgerHash",
+			"pow",
+			"receiptHash",
+			"receipts",
+			"signer",
+			"size",
+			"td",
+			"ttd",
+			"number",
+			"timestamp",
+			"snapshot",
+			"fromNow",
+		],
+	});
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: DBlockMySqlType[]) {
-	for (const item of updateList) {
-		console.log('update DBlock', item._id);
-		await updateOperation(item);
-	}
-}
-
-
 export async function migrateDBlock() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 
@@ -273,36 +275,39 @@ export async function migrateDBlock() {
 			newList.push(newItem)
 		});
 
-		const preList = await DBlockMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: DBlockMySqlType[] = [];
-			const updateList: DBlockMySqlType[] = [];
+		await asyncManyOperation(newList)
 
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
 
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
+		// const preList = await DBlockMySqlModel.findAll({
+		// 	where: {
+		// 		_id: {
+		// 			[Op.in]: _ids,
+		// 		},
+		// 	},
+		// });
+		// if (!preList.length) {
+		// 	await asyncManyOperation(newList)
+		// } else {
+		// 	const insertList: DBlockMySqlType[] = [];
+		// 	const updateList: DBlockMySqlType[] = [];
 
-				await updateSequentially(updateList);
-			}
-		}
+		// 	newList.forEach((item: any) => {
+		// 		const id = item._id;
+		// 		if (!_idSet.has(id)) {
+		// 			insertList.push(item);
+		// 		} else {
+		// 			updateList.push(item);
+		// 		}
+		// 	});
+
+		// 	if (insertList.length) {
+		// 		await asyncManyOperation(insertList)
+		// 	}
+		// 	if (updateList.length) {
+
+		// 		await updateSequentially(updateList);
+		// 	}
+		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

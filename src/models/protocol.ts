@@ -64,7 +64,8 @@ export const ProtocolMySqlModel = mySqlConnection.define<ProtocolMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		hash: {
@@ -131,7 +132,18 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await ProtocolMySqlModel.bulkCreate(list);
+	const results = await ProtocolMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"hash",
+			"uri",
+			"suit",
+			"title",
+			"bytes",
+			"nodeId",
+			"chainId"
+		],
+	});
 	return results;
 };
 
@@ -146,8 +158,8 @@ async function updateSequentially(updateList: ProtocolMySqlType[]) {
 
 
 export async function migrateProtocol() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 
@@ -174,37 +186,37 @@ export async function migrateProtocol() {
 			};
 			newList.push(newItem)
 		});
+		await asyncManyOperation(newList)
 
-		const preList = await ProtocolMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: ProtocolMySqlType[] = [];
-			const updateList: ProtocolMySqlType[] = [];
+		// const preList = await ProtocolMySqlModel.findAll({
+		// 	where: {
+		// 		_id: {
+		// 			[Op.in]: _ids,
+		// 		},
+		// 	},
+		// });
+		// if (!preList.length) {
+		// } else {
+		// 	const insertList: ProtocolMySqlType[] = [];
+		// 	const updateList: ProtocolMySqlType[] = [];
 
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
+		// 	newList.forEach((item: any) => {
+		// 		const id = item._id;
+		// 		if (!_idSet.has(id)) {
+		// 			insertList.push(item);
+		// 		} else {
+		// 			updateList.push(item);
+		// 		}
+		// 	});
 
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
+		// 	if (insertList.length) {
+		// 		await asyncManyOperation(insertList)
+		// 	}
+		// 	if (updateList.length) {
 
-				await updateSequentially(updateList);
-			}
-		}
+		// 		await updateSequentially(updateList);
+		// 	}
+		// }
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

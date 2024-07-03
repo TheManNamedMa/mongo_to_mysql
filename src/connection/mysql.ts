@@ -50,6 +50,10 @@ const connectMySql = async () => {
 	}
 };
 
+export const initMySqlModel = async () => {
+	
+};
+
 const disconnectMySql = async () => {
 	await mySqlConnection.close();
 	console.log("Disconnected from MySQL");

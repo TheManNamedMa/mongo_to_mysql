@@ -59,7 +59,8 @@ export const AccountsMySqlModel = mySqlConnection.define<AccountsMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		chainId: {
@@ -83,38 +84,19 @@ const getMongoData = async (query: any): Promise<any[]> => {
 	return contracts;
 };
 
-function updateOperation(data: any) {
-	return new Promise(async (resolve) => {
-		await AccountsMySqlModel.update(data, {
-			where: {
-				_id: data._id,
-			},
-		});
-		resolve({});
-	});
-}
 
 const asyncManyOperation = async (list: any) => {
-	const results = await AccountsMySqlModel.bulkCreate(list);
+	const results = await AccountsMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: ["chainId", "address"],
+	});
 	return results;
 };
 
 
-
-async function updateSequentially(updateList: AccountsMySqlType[]) {
-	for (const item of updateList) {
-		console.log('update account', item._id);
-		await updateOperation(item);
-	}
-}
-
-
 export async function migrateAccounts() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
 
 	let lastId = null
-
 	let current = 0
 	while (true) {
 		const query: any = lastId ? { _id: { $gt: lastId } } : {};
@@ -138,37 +120,8 @@ export async function migrateAccounts() {
 			};
 			newList.push(newItem)
 		});
+		await asyncManyOperation(newList)
 
-		const preList = await AccountsMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: AccountsMySqlType[] = [];
-			const updateList: AccountsMySqlType[] = [];
-
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
-
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
-
-				await updateSequentially(updateList);
-			}
-		}
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

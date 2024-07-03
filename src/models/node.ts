@@ -86,7 +86,8 @@ export const NodeMySqlModel = mySqlConnection.define<NodeMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING(255),
+			type: STRING(32),
+			unique: true,
 			allowNull: false
 		},
 		nodeId: {
@@ -161,36 +162,36 @@ const getMongoData = async (query: any): Promise<any[]> => {
 	const contracts = await NodeMongoModel.find(query).sort({ _id: 1 }).limit(batchSize);
 	return contracts;
 };
-
-function updateOperation(data: any) {
-	return new Promise(async (resolve) => {
-		await NodeMySqlModel.update(data, {
-			where: {
-				_id: data._id,
-			},
-		});
-		resolve({});
-	});
-}
-
 const asyncManyOperation = async (list: any) => {
-	const results = await NodeMySqlModel.bulkCreate(list);
+	const results = await NodeMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"nodeId",
+			"nodeType",
+			"activateStatus",
+			"chainId",
+			"name",
+			"description",
+			"host",
+			"port",
+			"location",
+			"latitude",
+			"longitude",
+			"regionName",
+			"isDictatorship",
+			"address",
+			"passportName",
+		],
+	});
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: NodeMySqlType[]) {
-	for (const item of updateList) {
-		console.log('update node', item._id);
-		await updateOperation(item);
-	}
-}
-
 
 export async function migrateNode() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 
@@ -218,36 +219,7 @@ export async function migrateNode() {
 			newList.push(newItem)
 		});
 
-		const preList = await NodeMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: NodeMySqlType[] = [];
-			const updateList: NodeMySqlType[] = [];
-
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
-
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
-
-				await updateSequentially(updateList);
-			}
-		}
+		await asyncManyOperation(newList)
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}

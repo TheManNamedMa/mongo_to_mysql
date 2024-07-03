@@ -19,14 +19,14 @@ import { batchSize } from "../config";
 const tableName = "entities"
 
 type EntityType = {
-	_id: String,
-	dataId: string
-	businessAddr: string
-	hash: string
-	uri: string
-	ID: string
+	_id?: String,
+	dataId: String
+	businessAddr: String
+	hash: String
+	uri: String
+	ID?: String
 	bytes: number[]
-	nodeId: string
+	nodeId: String
 	chainId: number
 }
 
@@ -65,7 +65,8 @@ export const EntityMySqlModel = mySqlConnection.define<EntityMySqlType>(
 	tableName,
 	{
 		_id: {
-			type: STRING,
+			type: STRING(32),
+			unique: true,
 			allowNull: true,
 		},
 		dataId: {
@@ -126,23 +127,28 @@ function updateOperation(data: any) {
 }
 
 const asyncManyOperation = async (list: any) => {
-	const results = await EntityMySqlModel.bulkCreate(list);
+	const results = await EntityMySqlModel.bulkCreate(list, {
+		ignoreDuplicates: false,
+		updateOnDuplicate: [
+			"dataId",
+			"businessAddr",
+			"hash",
+			"uri",
+			"entityID",
+			"bytes",
+			"nodeId",
+			"chainId",
+		]
+	});
 	return results;
 };
 
 
 
-async function updateSequentially(updateList: EntityMySqlType[]) {
-	for (const item of updateList) {
-		console.log('updateSequentially', item._id);
-		await updateOperation(item);
-	}
-}
-
 
 export async function migrateEntity() {
-	// 同步数据库
-	await mySqlConnection.sync({ force: false });
+
+
 
 	let lastId = null
 	let current = 0
@@ -170,36 +176,8 @@ export async function migrateEntity() {
 			newList.push(newItem)
 		});
 
-		const preList = await EntityMySqlModel.findAll({
-			where: {
-				_id: {
-					[Op.in]: _ids,
-				},
-			},
-		});
-		if (!preList.length) {
-			await asyncManyOperation(newList)
-		} else {
-			const insertList: EntityMySqlType[] = [];
-			const updateList: EntityMySqlType[] = [];
+		await asyncManyOperation(newList)
 
-			newList.forEach((item: any) => {
-				const id = item._id;
-				if (!_idSet.has(id)) {
-					insertList.push(item);
-				} else {
-					updateList.push(item);
-				}
-			});
-
-			if (insertList.length) {
-				await asyncManyOperation(insertList)
-			}
-			if (updateList.length) {
-
-				await updateSequentially(updateList);
-			}
-		}
 		lastId = list[list.length - 1]._id;
 		console.log(`${tableName} ${current += list.length} ${lastId}`)
 	}
