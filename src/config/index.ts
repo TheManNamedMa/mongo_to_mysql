@@ -1,39 +1,43 @@
+// 测试环境 127.0.0.1 mongo 库
 // export const mongoUrl = "mongodb://127.0.0.1:27017";
 // export const mongoUser = "";
 // export const mongoPassword = "";
 // export const mongoDbName = "lattice";
 
 
-
+// 测试环境 172.22.1.112 mongo 库
 // export const mongoUrl = 'mongodb://172.22.1.112:27017';
 // export const mongoUser = "root";
 // export const mongoPassword = "Lattice123";
 // export const mongoDbName = "lattice";
 
 
+// 测试环境 172.22.1.20 mongo 库
 // export const mongoUrl = 'mongodb://172.22.1.20:27017';
 // export const mongoUser = "";
 // export const mongoPassword = "";
 // export const mongoDbName = "lattice";
 
+// 测试环境 192.168.2.88 mongo 库
 export const mongoUrl = 'mongodb://192.168.2.88:27017';
 export const mongoUser = "root";
 export const mongoPassword = "Lattice123";
 export const mongoDbName = "lattice";
 
-export const mysqlUrl = "localhost";
-export const mysqlPort = 3306;
-export const mysqlUser = "root";
-export const mysqlPassword = "admin";
-export const mysqlDbName = "lattice";
-
-
-
-// export const mysqlUrl = "172.22.1.20";
+// 本地换环境 mysql库
+// export const mysqlUrl = "localhost";
 // export const mysqlPort = 3306;
 // export const mysqlUser = "root";
-// export const mysqlPassword = "";
+// export const mysqlPassword = "admin";
 // export const mysqlDbName = "lattice";
+
+
+
+export const mysqlUrl = "172.22.1.20";
+export const mysqlPort = 3306;
+export const mysqlUser = "root";
+export const mysqlPassword = "";
+export const mysqlDbName = "lattice";
 
 
 

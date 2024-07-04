@@ -23,6 +23,7 @@ const main = async () => {
 	await connectDatabase()
 	await connectMySql()
 	await mySqlConnection.sync({ force: false });
+	const startTime = new Date()
 	console.log('migrate start');
 	migrateConfig.accounts.migrate && await migrateAccounts()
 	migrateConfig.chains.migrate && await migrateChains()
@@ -38,7 +39,10 @@ const main = async () => {
 	migrateConfig.protocol.migrate && await migrateProtocol()
 	migrateConfig.rootKey.migrate && await migrateRootKey()
 	console.log('migrate finish');
-
+	const endTime = new Date()
+	const duration = endTime.getTime() - startTime.getTime()
+	const durationStr = duration / 1000 + 's'
+	console.log('duration:', durationStr);
 	await disconnectDatabase()
 	await disconnectMySql()
 	console.log('finish');
